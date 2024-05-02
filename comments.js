@@ -1,40 +1,58 @@
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+// Create web server
 
-const server = http.createServer((req, res) => {
+var http = require("http");
+var url = require("url");
+var fs = require("fs");
+var querystring = require("querystring");
+var comments = require("./comments.json");
 
-  // Handle requests to base URL
-  if (req.url === '/') {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    fs.createReadStream(path.join(__dirname, 'index.html')).pipe(res);
-  }
+var server = http.createServer(function (req, res) {
+    var urlObj = url.parse(req.url, true);
+    var pathName = urlObj.pathname;
+    var query = urlObj.query;
+    var method = req.method;
 
-  // Handle requests for stylesheets
-  else if (req.url.match(/.css$/)) {
-    const cssPath = path.join(__dirname, req.url);
-    const fileStream = fs.createReadStream(cssPath);
-    res.writeHead(200, { 'Content-Type': 'text/css' });
-    fileStream.pipe(res);
-  }
-
-  // Handle requests for images
-  else if (req.url.match(/.jpg$/)) {
-    const imagePath = path.join(__dirname, req.url);
-    const fileStream = fs.createReadStream(imagePath);
-    res.writeHead(200, { 'Content-Type': 'image/jpeg' });
-    fileStream.pipe(res);
-  }
-
-  // Handle 404 error
-  else {
-    res.writeHead(404, { 'Content-Type': 'text/html' });
-    res.end('<h1>404 Page Not Found</h1>');
-  }
-
+    if (pathName === "/") {
+        fs.readFile("./index.html", function (err, data) {
+            if (err) {
+                console.log(err);
+            } else {
+                res.setHeader("Content-Type", "text/html;charset=utf-8");
+                res.end(data);
+            }
+        });
+    } else if (pathName === "/getComments") {
+        var comments = require("./comments.json");
+        var comment = comments[query.index];
+        var str = JSON.stringify(comment);
+        res.end(str);
+    } else if (pathName === "/addComment") {
+        var str = "";
+        req.on("data", function (chunk) {
+            str += chunk;
+        });
+        req.on("end", function () {
+            var comment = querystring.parse(str);
+            comments.push(comment);
+            fs.writeFile("./comments.json", JSON.stringify(comments), function (err) {
+                if (err) {
+                    console.log(err);
+                } else {
+                    res.end("success");
+                }
+            });
+        });
+    } else {
+        fs.readFile("." + pathName, function (err, data) {
+            if (err) {
+                console.log(err);
+            } else {
+                res.end(data);
+            }
+        });
+    }
 });
 
-server.listen(3000, () => {
-  console.log('Server running on http://localhost:3000');
+server.listen(9090, function () {
+    console.log("server is listening on 9090 port");
 });
-
